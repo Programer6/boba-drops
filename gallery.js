@@ -4,6 +4,8 @@ const BATCH_SIZE = 50;
 let allSubmissions = [];
 let currentIndex = 0;
 let submissionStatus = "All";
+let observer;
+
 const urlParams = new URLSearchParams(window.location.search);
 const statusQuery = urlParams.get("status");
 let eventCode = urlParams.get("eventCode") || "";
@@ -32,12 +34,12 @@ async function fetchAllData() {
     filterFormula += `{Event Code} = '${eventCode}'`;
   }
   filterFormula += ")";
-  
+
   params.append(
     "select",
-    JSON.stringify({ 
+    JSON.stringify({
       filterByFormula: filterFormula,
-      sort: [{ field: "Created At", direction: "desc" }] 
+      sort: [{ field: "Created At", direction: "desc" }]
     })
   );
   params.append("cache", true);
@@ -45,13 +47,14 @@ async function fetchAllData() {
   try {
     const response = await fetch(`https://${BASE_DOMAIN}/v0.1/Boba Drops/Websites?${params}`);
     allSubmissions = await response.json();
-    
+
+    galleryGrid.innerHTML = "";
+
     if (allSubmissions.length === 0) {
       galleryGrid.innerHTML = "<h1 style='text-align: center;'>No submissions found</h1>";
       return;
     }
-    
-    galleryGrid.innerHTML = "";
+
     renderMoreSubmissions();
     setupIntersectionObserver();
   } catch (error) {
@@ -61,6 +64,11 @@ async function fetchAllData() {
 }
 
 function renderMoreSubmissions() {
+  if (currentIndex >= allSubmissions.length) {
+    if (observer) observer.disconnect();
+    return;
+  }
+
   const galleryGrid = document.getElementById("grid-gallery");
   const fragment = document.createDocumentFragment();
   const nextIndex = Math.min(currentIndex + BATCH_SIZE, allSubmissions.length);
@@ -94,16 +102,16 @@ function renderMoreSubmissions() {
 }
 
 function setupIntersectionObserver() {
-    const observer = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && currentIndex < allSubmissions.length) {
-            renderMoreSubmissions();
-        }
-    }, { rootMargin: "200px" });
+  const trigger = document.getElementById('load-more-trigger');
+  const options = { rootMargin: '200px' };
 
-    const lastElement = document.querySelector("#grid-gallery > .grid-submission:last-child");
-    if (lastElement) {
-        observer.observe(lastElement);
+  observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+      renderMoreSubmissions();
     }
+  }, options);
+
+  observer.observe(trigger);
 }
 
 const form = document.getElementById("event-code-search");
